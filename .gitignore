@@ -1,3 +1,7 @@
 .idx/
 .vscode/
 .DS_Store
+.phpunit.cache/
+.phpstan-cache/
+vendor/
+node_modules/

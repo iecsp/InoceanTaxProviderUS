@@ -1,8 +1,7 @@
 {
-    "name": "inoceanSalesTaxesUsa",
-    "version": "1.0.4",
-    "private": true,
-    "main": "main.js",
-    "type": "module"
-  }
-  
+  "name": "inoceanSalesTaxesUsa",
+  "version": "2.0.0",
+  "private": true,
+  "main": "main.js",
+  "type": "module"
+}

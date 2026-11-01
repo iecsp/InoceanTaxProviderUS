@@ -1,11 +1,9 @@
-includes:
-    - ../../../vendor/phpstan/phpstan-deprecation-rules/rules.neon
-    - phpstan-baseline.neon
-
 parameters:
     level: 5
     paths:
         - src
     excludePaths:
         - src/Resources
-    tmpDir: ../../../var/cache/phpstan/InoceanSalesTaxesUsa
+    bootstrapFiles:
+        - tests/bootstrap.php
+    tmpDir: .phpstan-cache

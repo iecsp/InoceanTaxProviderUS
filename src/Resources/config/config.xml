@@ -1,36 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?>
-<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/trunk/src/Core/System/SystemConfig/Schema/config.xsd">
-
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/System/SystemConfig/Schema/config.xsd">
     <card>
-        <title>USA Tax Settings</title>
-        <title lang="de-DE">USA Steuereinstellungen</title>
-        <title lang="en-US">USA Tax Settings</title>
-
-        <input-field type="bool">
-            <name>TaxBreakdown</name>
-            <defaultValue>true</defaultValue>
-            <label>Show tax breakdown?</label>
-            <label lang="de-DE">wie ist die Steueraufschlüsselung?</label>
-            <label lang="en-US">Show tax breakdown?</label>
-        </input-field>
-
-        <input-field type="bool">
-            <name>FreightTaxable</name>
-            <defaultValue>true</defaultValue>
-            <label>Freight is taxable?</label>
-            <label lang="de-DE">Fracht ist steuerpflichtig?</label>
-            <label lang="en-US">Freight is taxable?</label>
-        </input-field>
-
-        <input-field type="int">
-            <name>TaxDecimals</name>
-            <defaultValue>2</defaultValue>
-            <label>Tax Decimals</label>
-            <label lang="de-DE">Steuerdezimalzahlen</label>
-            <label lang="en-US">Tax Decimals</label>
-        </input-field>
-
+        <title>USA sales tax — configuration</title>
+        <title lang="zh-CN">美国销售税配置</title>
+        <input-field type="bool"><name>Enabled</name><defaultValue>false</defaultValue><label>Enable verified local tax calculation</label><label lang="zh-CN">启用本地税额计算</label><helpText>Configure nexus, synchronize current data and verify your tax treatment before enabling. Managed US checkout is blocked while disabled.</helpText></input-field>
+        <input-field type="text"><name>NexusStates</name><defaultValue>CA</defaultValue><label>States where you collect sales tax (comma separated, e.g. CA)</label><label lang="zh-CN">需要代收销售税的州（逗号分隔，例如 CA）</label><helpText>Required. Outside these states managed items are tax-free. Verified sources support CA and WA. Other nexus states block checkout.</helpText></input-field>
+        <input-field type="bool"><name>OfficialAddressVerification</name><defaultValue>false</defaultValue><label>Allow background California address verification with CDTFA</label><label lang="zh-CN">允许后台向加州 CDTFA 核验收货地址</label><helpText>Sends shipping street, city and ZIP to the official California tax authority. No names, email, items or order amounts are sent. Results are cached locally for the current day and dataset. Unverified addresses block checkout while the async worker verifies them; refresh checkout shortly. Review CDTFA privacy and terms before enabling.</helpText><helpText lang="zh-CN">开启后，后台任务会向 CDTFA 发送收货街道、城市和 ZIP；不发送姓名、邮箱、商品或订单金额。结果缓存在本地，仅限当前日期和税率版本。尚未核验时暂时阻止下单，请稍后刷新。开启前请阅读使用条款及隐私说明。</helpText></input-field>
+        <input-field type="bool"><name>FreightTaxable</name><defaultValue>true</defaultValue><label>Tax managed shipping charges</label><label lang="zh-CN">对托管运输方式的运费计税</label><helpText>Merchant tax policy for supported general merchandise. This is not an automatic determination of freight taxability.</helpText></input-field>
+    </card>
+    <card>
+        <title>Official tax database synchronization</title>
+        <title lang="zh-CN">官方税率数据库同步</title>
+        <component name="ino-usa-tax-sync"><name>RateSynchronization</name></component>
     </card>
 </config>
-

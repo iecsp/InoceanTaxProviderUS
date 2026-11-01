@@ -1,11 +1,8 @@
 {
   "main.js": {
-    "file": "assets/inocean-sales-taxes-usa-py0PrR9l.js",
+    "file": "assets/inocean-sales-taxes-usa-Bkr-VUkR.js",
     "name": "inocean-sales-taxes-usa",
     "src": "main.js",
-    "isEntry": true,
-    "css": [
-      "assets/inocean-sales-taxes-usa-BrUPXVhZ.css"
-    ]
+    "isEntry": true
   }
 }

@@ -1,31 +1,31 @@
 {
-    "salesTaxUsa": {
-        "checkout": {
-            "summary": {
-                "taxRateNotice": "Tax rates will be displayed on the checkout page.",
-                "shippingMethod": "📦 Shipping Method:",
-                "shippingTotalPrice": "Shipping Amount:",
-                "shippingTaxRate": "Tax Rate:",
-                "shippingTax": "Tax Amount:",
-                "shippingDelivered": "Estimated Delivery Time:"
-            },
-            "taxes": {
-                "taxCombinedRate": "Combined Rate (%taxRate%%)",
-                "taxStateRate": "State Rate (%taxRate%%)",
-                "taxCountyRate": "County Rate (%taxRate%%)",
-                "taxCityRate": "City Rate (%taxRate%%)",
-                "taxSpecialRate": "Special Rate (%taxRate%%)",
-                "shippingTaxCombinedRate": "Shipping Combined Rate (%taxRate%%)",
-                "shippingTaxStateRate": "Shipping State Rate (%taxRate%%)",
-                "shippingTaxCountyRate": "Shipping County Rate (%taxRate%%)",
-                "shippingTaxCityRate": "Shipping City Rate (%taxRate%%)",
-                "shippingTaxSpecialRate": "Shipping Special Rate (%taxRate%%)",
-                "taxTAX": "TAX (%taxRate%%)",
-                "taxTAX-FREE": "TAX-FREE"
-            }
-        }
-    },
+  "salesTaxUsa": {
     "checkout": {
-        "inocean-usa-unknown-tax-zip": "Sales tax cannot be determined for ZIP code %zipcode% (%state%). Please check the address."
+      "summary": {
+        "taxRateNotice": "Tax rates will be displayed on the checkout page.",
+        "shippingMethod": "\ud83d\udce6 Shipping Method:",
+        "shippingTotalPrice": "Shipping Amount:",
+        "shippingTaxRate": "Tax Rate:",
+        "shippingTax": "Tax Amount:",
+        "shippingDelivered": "Estimated Delivery Time:"
+      },
+      "taxes": {
+        "taxCombinedRate": "Combined Rate (%taxRate%%)",
+        "taxStateRate": "State Rate (%taxRate%%)",
+        "taxCountyRate": "County Rate (%taxRate%%)",
+        "taxCityRate": "City Rate (%taxRate%%)",
+        "taxSpecialRate": "Special Rate (%taxRate%%)",
+        "shippingTaxCombinedRate": "Shipping Combined Rate (%taxRate%%)",
+        "shippingTaxStateRate": "Shipping State Rate (%taxRate%%)",
+        "shippingTaxCountyRate": "Shipping County Rate (%taxRate%%)",
+        "shippingTaxCityRate": "Shipping City Rate (%taxRate%%)",
+        "shippingTaxSpecialRate": "Shipping Special Rate (%taxRate%%)",
+        "taxTAX": "TAX (%taxRate%%)",
+        "taxTAX-FREE": "TAX-FREE"
+      }
     }
+  },
+  "checkout": {
+    "inocean-usa-unknown-tax-zip": "Sales tax cannot yet be verified for %zipcode% (%state%). Please verify the full shipping address and refresh shortly. If this persists, contact the merchant."
+  }
 }

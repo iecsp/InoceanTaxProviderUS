@@ -76,7 +76,7 @@ class InoceanSalesTaxesUsa extends Plugin
                 'id' => Constants::TAX_PROVIDER_ID,
                 'identifier' => UsaTaxProvider::class,
                 'name' => 'U.S. Tax Provider',
-                'active' => true,
+                'active' => false,
                 'priority' => 1,
                 'availabilityRuleId' => Constants::USA_RULE_ID,
                 'createdAt' => (new \DateTime())->format(Defaults::STORAGE_DATE_TIME_FORMAT),
@@ -97,7 +97,7 @@ class InoceanSalesTaxesUsa extends Plugin
 
             $taxProviderRepository->create([$taxProviderData], $context);
         }
-        
+
         $taxRepository = $container->get('tax.repository');
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsAnyFilter('id', array_column(Constants::TAXES, 'id')));
@@ -123,16 +123,21 @@ class InoceanSalesTaxesUsa extends Plugin
 
         $context = $uninstallContext->getContext();
 
+        $this->setActiveFlagForTaxProvider(false, $context);
+
         if ($uninstallContext->keepUserData()) {
             return;
         }
 
-        $this->setActiveFlagForTaxProvider(false, $context);
         $this->clearTaxProviderRuleAssociation($context);
         $this->removeTaxProvider($context);
         $this->removeRuleConditions($context);
         $this->removeRule($context);
-        $this->removeTaxes($context);
+        // Keep tax definitions: products, shipping methods and historical orders may reference them.
+        $connection = $this->container->get(\Doctrine\DBAL\Connection::class);
+        foreach (['ino_usa_tax_address', 'ino_usa_tax_jurisdiction', 'ino_usa_tax_source', 'ino_usa_tax_rate', 'ino_usa_tax_dataset'] as $table) {
+            $connection->executeStatement('DROP TABLE IF EXISTS ' . $table);
+        }
     }
 
     public function activate(ActivateContext $activateContext): void
@@ -167,7 +172,7 @@ class InoceanSalesTaxesUsa extends Plugin
         $taxProviderRepository = $this->container->get('tax_provider.repository');
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('identifier', UsaTaxProvider::class));
-        
+
         $taxProviderId = $taxProviderRepository->searchIds($criteria, $context)->firstId();
         if ($taxProviderId) {
             $taxProviderRepository->update([
@@ -184,7 +189,7 @@ class InoceanSalesTaxesUsa extends Plugin
         $taxProviderRepository = $this->container->get('tax_provider.repository');
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('identifier', UsaTaxProvider::class));
-        
+
         $taxProviderId = $taxProviderRepository->searchIds($criteria, $context)->firstId();
         if ($taxProviderId) {
             $taxProviderRepository->delete([
@@ -198,7 +203,7 @@ class InoceanSalesTaxesUsa extends Plugin
         $ruleConditionRepository = $this->container->get('rule_condition.repository');
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('ruleId', Constants::USA_RULE_ID));
-        
+
         $ruleConditionIds = $ruleConditionRepository->searchIds($criteria, $context)->getIds();
         if (!empty($ruleConditionIds)) {
             $deleteData = array_map(fn($id) => ['id' => $id], $ruleConditionIds);
@@ -211,44 +216,12 @@ class InoceanSalesTaxesUsa extends Plugin
         $ruleRepository = $this->container->get('rule.repository');
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('id', Constants::USA_RULE_ID));
-        
+
         $ruleId = $ruleRepository->searchIds($criteria, $context)->firstId();
         if ($ruleId) {
             $ruleRepository->delete([
                 ['id' => $ruleId]
             ], $context);
-        }
-    }
-
-    private function removeTaxes(Context $context): void
-    {
-        $taxRepository = $this->container->get('tax.repository');
-        $criteria = new Criteria();
-        
-        $taxIds = array_map(fn($tax) => $tax['id'], Constants::TAXES);
-        $criteria->addFilter(new EqualsAnyFilter('id', $taxIds));
-        
-        $taxesToRemove = $taxRepository->searchIds($criteria, $context)->getIds();
-        
-        if (!empty($taxesToRemove)) {
-            $productRepository = $this->container->get('product.repository');
-            $shippingMethodRepository = $this->container->get('shipping_method.repository');
-            
-            $productCriteria = new Criteria();
-            $productCriteria->addFilter(new EqualsAnyFilter('taxId', $taxesToRemove));
-            $productsUsingTax = $productRepository->searchIds($productCriteria, $context)->getIds();
-            
-            $shippingMethodCriteria = new Criteria();
-            $shippingMethodCriteria->addFilter(new EqualsAnyFilter('taxId', $taxesToRemove));
-            $shippingMethodsUsingTax = $shippingMethodRepository->searchIds($shippingMethodCriteria, $context)->getIds();
-            
-            $taxesInUse = array_unique(array_merge($productsUsingTax, $shippingMethodsUsingTax));
-            $taxesToActuallyRemove = array_diff($taxesToRemove, $taxesInUse);
-            
-            if (!empty($taxesToActuallyRemove)) {
-                $deleteData = array_map(fn($id) => ['id' => $id], $taxesToActuallyRemove);
-                $taxRepository->delete($deleteData, $context);
-            }
         }
     }
 

@@ -2,8 +2,8 @@
   "salesTaxUsa": {
     "checkout": {
       "summary": {
-        "taxRateNotice": "Die Steuersätze werden auf der Kassenseite angezeigt.",
-        "shippingMethod": "📦 Versandmethode:",
+        "taxRateNotice": "Die Steuers\u00e4tze werden auf der Kassenseite angezeigt.",
+        "shippingMethod": "\ud83d\udce6 Versandmethode:",
         "shippingTotalPrice": "Versandkosten:",
         "shippingTaxRate": "Steuersatz:",
         "shippingTax": "Steuerbetrag:",
@@ -19,13 +19,13 @@
         "shippingTaxStateRate": "Bundeslandsteuersatz (%taxRate%%)",
         "shippingTaxCountyRate": "Landkreissteuersatz (%taxRate%%)",
         "shippingTaxCityRate": "Stadtsteuersatz (%taxRate%%)",
-        "shippingTaxSpecialRate": "Sondersteuersatz für Versand (%taxRate%%)",
+        "shippingTaxSpecialRate": "Sondersteuersatz f\u00fcr Versand (%taxRate%%)",
         "taxTAX": "Steuer (%taxRate%%)",
         "taxTAX-FREE": "STEUERFREI"
       }
     }
   },
   "checkout": {
-    "inocean-usa-unknown-tax-zip": "Für die Postleitzahl %zipcode% (%state%) kann keine Umsatzsteuer ermittelt werden. Bitte prüfen Sie die Adresse."
+    "inocean-usa-unknown-tax-zip": "Die Steuer f\u00fcr %zipcode% (%state%) konnte noch nicht best\u00e4tigt werden. Bitte Lieferadresse pr\u00fcfen und in K\u00fcrze neu laden. Bei anhaltenden Problemen kontaktieren Sie den H\u00e4ndler."
   }
 }

@@ -1,427 +1,175 @@
 <?php declare(strict_types=1);
-
 namespace InoceanSalesTaxesUsa\Core\Checkout\Cart\Tax;
 
+use InoceanSalesTaxesUsa\Config\Constants;
+use InoceanSalesTaxesUsa\Core\Checkout\Cart\Error\UnknownTaxZipError;
+use InoceanSalesTaxesUsa\Service\RateLookup;
+use InoceanSalesTaxesUsa\Service\CaliforniaAddressLookup;
+use InoceanSalesTaxesUsa\Service\TaxMath;
+use Psr\Log\LoggerInterface;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
+use Shopware\Core\Checkout\Cart\Price\Struct\CartPrice;
+use Shopware\Core\Checkout\Cart\Tax\Struct\CalculatedTax;
+use Shopware\Core\Checkout\Cart\Tax\Struct\CalculatedTaxCollection;
 use Shopware\Core\Checkout\Cart\TaxProvider\AbstractTaxProvider;
 use Shopware\Core\Checkout\Cart\TaxProvider\Struct\TaxProviderResult;
-use Shopware\Core\Checkout\Cart\Tax\Struct\CalculatedTax;
-use Shopware\Core\Framework\Struct\ArrayEntity;
-use InoceanSalesTaxesUsa\Core\Checkout\Cart\Error\UnknownTaxZipError;
-use InoceanSalesTaxesUsa\Core\Checkout\Cart\Tax\Struct\UsaCalculatedTaxCollection;
-use Psr\Log\LoggerInterface;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
-use InoceanSalesTaxesUsa\Config\Constants;
 
-class UsaTaxProvider extends AbstractTaxProvider
+final class UsaTaxProvider extends AbstractTaxProvider
 {
-
-    /**
-     * Name given to a band that stands for several same-rate bands merged
-     * together. It has a snippet (`salesTaxUsa.checkout.taxes.taxTAX`), unlike
-     * a joined name such as "StateRate+CityRate" would.
-     */
-    private const MERGED_BAND_NAME = 'TAX';
-
-    private SystemConfigService $systemConfigService;
-
-    /** @var array<string, mixed>|null */
-    private ?array $zipIndex = null;
-
-    /** Set by getTaxRatesByZipCode() when it had to fall back to a guessed rate. */
-    private bool $ratesUnknown = false;
-
-    public function __construct(
-        SystemConfigService $systemConfigService,
-        private readonly ?LoggerInterface $logger = null,
-    ) {
-        $this->systemConfigService = $systemConfigService;
-    }
+    public function __construct(private readonly SystemConfigService $config, private readonly RateLookup $lookup,
+        private readonly CaliforniaAddressLookup $california, private readonly LoggerInterface $logger) {}
 
     public function provide(Cart $cart, SalesChannelContext $context): TaxProviderResult
     {
-        $lineItemTaxes = [];
-        $deliveryTaxes = [];
-        $aggregatedCartTaxes = [];
-        $finalCartTaxes = [];
-        $this->ratesUnknown = false;
-
-        $showTaxBreakdown = $this->systemConfigService->get('InoceanSalesTaxesUsa.config.TaxBreakdown') ?? 1;
-        $freightTaxable = $this->systemConfigService->get('InoceanSalesTaxesUsa.config.FreightTaxable') ?? 1;
-        $taxDecimals = $this->systemConfigService->get('InoceanSalesTaxesUsa.config.TaxDecimals') ?? 2;
-        
+        // The official address API supplies today's rate, not historical rates. Abort an admin
+        // recalculation before it can silently rewrite an existing US order with current tax.
+        if ($cart->hasExtension(\Shopware\Core\Checkout\Cart\Order\OrderConverter::ORIGINAL_ORDER_NUMBER)) {
+            foreach ($cart->getLineItems()->getFlat() as $line) {
+                if ($this->managed($line->getPayloadValue('taxId')) || $line->hasPayloadValue('inoceanUsaTaxVersion') || $line->hasPayloadValue('inoceanUsaTaxInfo')) {
+                    throw new \RuntimeException('Historical USA order tax recalculation requires a reviewed historical tax adjustment. Existing saved amounts are preserved.');
+                }
+            }
+        }
+        $cart->getErrors()->remove(UnknownTaxZipError::KEY);
+        // No request state or full-table cache lives in this singleton service.
+        TaxPayloadCleaner::clear($cart);
+        if ($context->getTaxState() === CartPrice::TAX_STATE_FREE || $context->getShippingLocation()->getCountry()->getIso() !== 'US') {
+            return new TaxProviderResult();
+        }
+        $hasManaged = false;
+        foreach ($cart->getLineItems()->getFlat() as $line) {
+            $hasManaged = $hasManaged || $this->managed($line->getPayloadValue('taxId'));
+        }
+        foreach ($cart->getDeliveries() as $delivery) { $hasManaged = $hasManaged || $this->managed($delivery->getShippingMethod()->getTaxId()); }
+        if (!$hasManaged) { return new TaxProviderResult(); }
+        $channel = $context->getSalesChannelId();
         $address = $context->getShippingLocation()->getAddress();
-        if (!$address || strtoupper($address->getCountry()?->getIso()) !== Constants::DEFAULT_COUNTRY) {
-            return new TaxProviderResult([]);
-        }
-
-        $zipCode = substr((string) $address->getZipcode(), 0, 5);
-
-        // An address without a state used to fatal here and take the whole cart
-        // down. The ZIP identifies the state on its own.
-        $state = $address->getCountryState()?->getShortCode()
-            ?? $this->stateForZip($zipCode)
-            ?? Constants::DEFAULT_STATE;
-
-        // Promotions are taxed in a second pass, at the rates of the lines they
-        // discounted — see applyPromotionTaxes().
-        $ratesByLineId = [];
-        $priceByLineId = [];
-        $promotionLineItems = [];
-
-        foreach ($cart->getLineItems() as $lineItem) {
-            if ($lineItem->getType() === LineItem::PROMOTION_LINE_ITEM_TYPE) {
-                $promotionLineItems[] = $lineItem;
-
-                continue;
+        $state = strtoupper((string) $context->getShippingLocation()->getState()?->getShortCode());
+        $state = str_starts_with($state, 'US-') ? substr($state, 3) : $state;
+        $zip = (string) $address?->getZipcode();
+        try {
+            if (!$this->config->getBool('InoceanSalesTaxesUsa.config.Enabled', $channel)) {
+                throw new \DomainException('USA tax provider must be configured and enabled.');
             }
-
-            $originalTaxRate = $lineItem->getPrice()->getCalculatedTaxes()->first()?->getTaxRate() ?? $this->getDefaultRateByTaxType('TAX-FREE');
-
-            if ($lineItem->getPayloadValue('taxId') === Constants::TAXES[1]['id']) {
-                $taxRates = ['TAX-FREE' => $this->getDefaultRateByTaxType('TAX-FREE')];
-            } elseif ($lineItem->getPayloadValue('taxId') === Constants::TAXES[0]['id']) {
-                $taxRates = $this->getTaxRatesByZipCode($zipCode, $state, $showTaxBreakdown);
-            } else {
-                $taxRates = ['TAX' => $originalTaxRate];
+            $nexus = array_values(array_filter(array_map('trim', explode(',', strtoupper((string) $this->config->get('InoceanSalesTaxesUsa.config.NexusStates', $channel))))));
+            if ($nexus === [] || !preg_match('/^[A-Z]{2}$/D', $state)) {
+                throw new \DomainException('Configure nexus states and a valid shipping state.');
             }
-
-            $price = $lineItem->getPrice()->getTotalPrice();
-
-            // A 0% band is nothing a discount could be reversed against.
-            $ratesByLineId[$lineItem->getId()] = array_filter($taxRates, static fn ($rate): bool => (float) $rate > 0.0);
-            $priceByLineId[$lineItem->getId()] = $price;
-
-            $bands = [];
-            foreach ($taxRates as $taxName => $taxRate) {
-                $bands[] = ['name' => $taxName, 'rate' => $taxRate, 'tax' => round($price * $taxRate / 100, $taxDecimals), 'price' => $price];
+            foreach ($nexus as $code) {
+                if (!in_array($code, Constants::STATE_CODES, true)) { throw new \DomainException('Invalid nexus configuration.'); }
             }
-            $this->applyBands($lineItem, $bands, $aggregatedCartTaxes, $lineItemTaxes);
-        }
-
-        foreach ($promotionLineItems as $lineItem) {
-            $this->applyPromotionTaxes($lineItem, $ratesByLineId, $priceByLineId, (int) $taxDecimals, $aggregatedCartTaxes, $lineItemTaxes);
-        }
-
-        if ($freightTaxable) {
-            $delivery = $cart->getDeliveries()->first();
-        
-            if ($delivery && $delivery->getShippingCosts()->getTotalPrice() > 0) {
-                $shippingTotalPrice = $delivery->getShippingCosts()->getTotalPrice();
-                $taxId = $delivery->getShippingMethod()->getTaxId();
-                $aggregatedShippingTaxesPayload = [];
-                $deliveryTaxRates = [];
-                $calculatedDeliveryTaxes = [];
-
-                if ($taxId === Constants::TAXES[0]['id']) {
-                    $deliveryTaxRates = $this->getTaxRatesByZipCode($zipCode, $state, $showTaxBreakdown);
+            // No geographic rate is needed for an entirely tax-free cart.
+            $needsRate = false;
+            foreach ($cart->getLineItems()->getFlat() as $candidate) {
+                $needsRate = $needsRate || $candidate->getPayloadValue('taxId') === Constants::TAXES[0]['id'];
+            }
+            foreach ($cart->getDeliveries() as $candidate) {
+                $needsRate = $needsRate || (($this->config->get('InoceanSalesTaxesUsa.config.FreightTaxable', $channel) ?? true) && $candidate->getShippingMethod()->getTaxId() === Constants::TAXES[0]['id']);
+            }
+            $release = $needsRate && in_array($state, $nexus, true)
+                ? ($state === 'CA' ? $this->californiaRate($address, $channel) : $this->lookup->find($state, $zip, \InoceanSalesTaxesUsa\Service\TaxDate::today()))
+                : ['rate' => 0.0, 'components' => [], 'datasetId' => $needsRate ? 'no-nexus' : 'tax-exempt', 'jurisdiction' => $state];
+            $rate = (float) $release['rate'];
+            $gross = $context->getTaxState() === CartPrice::TAX_STATE_GROSS;
+            $decimals = $context->getItemRounding()->getDecimals();
+            $lineTaxes = []; $deliveryTaxes = []; $aggregate = new CalculatedTaxCollection();
+            $rates = []; $prices = []; $promotions = [];
+            foreach ($cart->getLineItems() as $line) {
+                if (!$line->getPrice() || $line->hasChildren()) { throw new \DomainException('Unpriced or nested items require explicit tax support.'); }
+                if ($line->getType() === LineItem::PROMOTION_LINE_ITEM_TYPE) { $promotions[] = $line; continue; }
+                $price = $line->getPrice()->getTotalPrice();
+                if ($this->managed($line->getPayloadValue('taxId'))) {
+                    $itemRate = $line->getPayloadValue('taxId') === Constants::TAXES[1]['id'] ? 0.0 : $rate;
+                    $taxes = $this->taxes([['rate' => $itemRate, 'price' => $price, 'tax' => TaxMath::amount($price, $itemRate, $gross, $decimals)]]);
+                    $lineTaxes[$line->getUniqueIdentifier()] = $taxes;
+                    $line->setPayloadValue('inoceanUsaTaxVersion', $release);
+                    $line->setPayloadValue('inoceanUsaTaxInfo', [['name' => 'CombinedRate', 'rate' => $itemRate, 'tax' => $taxes->getAmount()]]);
+                    $rates[$line->getId()] = $itemRate;
                 } else {
-                    $deliveryTaxRates = ['TAX-FREE' => $this->getDefaultRateByTaxType('TAX-FREE')];
+                    $taxes = $line->getPrice()->getCalculatedTaxes();
+                    $rates[$line->getId()] = $taxes->count() <= 1 ? ($taxes->first()?->getTaxRate() ?? 0.0) : null;
                 }
-        
-                $deliveryBands = [];
-                foreach ($deliveryTaxRates as $deliveryTaxName => $deliveryTaxRate) {
-                    $deliveryTaxAmount = round($shippingTotalPrice * $deliveryTaxRate / 100, $taxDecimals);
-                    $deliveryBands[] = ['name' => $deliveryTaxName, 'rate' => $deliveryTaxRate, 'tax' => $deliveryTaxAmount, 'price' => $shippingTotalPrice];
-                    $this->aggregate($aggregatedCartTaxes, $deliveryTaxName, $deliveryTaxRate, $deliveryTaxAmount, $shippingTotalPrice, 'delivery');
-
-                    $aggregatedShippingTaxesPayload[$deliveryTaxName] = [
-                        'name' => $deliveryTaxName, 
-                        'rate' => $deliveryTaxRate, 
-                        'tax' => $deliveryTaxAmount
-                    ];
-                }
-        
-                $calculatedDeliveryTaxes = $this->mergedTaxes($deliveryBands);
-
-                if (!empty($calculatedDeliveryTaxes) && $delivery->getPositions()->first()) {
-                    $deliveryTaxes[$delivery->getPositions()->first()->getIdentifier()] = new UsaCalculatedTaxCollection($calculatedDeliveryTaxes);
-                }
-        
-                if (!empty($aggregatedShippingTaxesPayload) && $cart->getLineItems()->first()) {
-                    $payload = $cart->getLineItems()->first()->getPayload();
-                    $payload['inoceanShippingTaxInfo'] = array_values($aggregatedShippingTaxesPayload);
-                    $cart->getLineItems()->first()->setPayload($payload);
-                }
+                $prices[$line->getId()] = max(0.0, $price);
+                $aggregate->merge($taxes);
             }
+            foreach ($promotions as $line) {
+                $composition = $line->getPayloadValue('composition');
+                $weights = [];
+                // Falling back to all items can tax a shipping-only or restricted discount incorrectly.
+                if (!is_array($composition) || $composition === []) { throw new \DomainException('Promotion requires an explicit item composition.'); }
+                foreach ($composition as $entry) {
+                    if (!is_array($entry) || !is_string($entry['id'] ?? null) || !is_numeric($entry['discount'] ?? null)) {
+                        throw new \DomainException('Invalid promotion composition.');
+                    }
+                    $id = $entry['id'];
+                    if (!array_key_exists($id, $rates)) { throw new \DomainException('Unknown promotion target.'); }
+                    $weights[$id] = ($weights[$id] ?? 0.0) + abs((float) $entry['discount']);
+                }
+                foreach ($weights as $id => $weight) {
+                    if ($weight > $prices[$id] + pow(10, -$decimals)) { throw new \DomainException('Promotion exceeds its item base.'); }
+                    $prices[$id] -= $weight;
+                }
+                $discount = $line->getPrice()->getTotalPrice();
+                if (abs(array_sum($weights) - abs($discount)) > pow(10, -$decimals) + 0.000001) {
+                    throw new \DomainException('Promotion composition does not match its total.');
+                }
+                $bands = TaxMath::discount($discount, $weights, $rates, $gross, $decimals);
+                $taxes = $this->taxes($bands);
+                $lineTaxes[$line->getUniqueIdentifier()] = $taxes;
+                $aggregate->merge($taxes);
+                $line->setPayloadValue('inoceanUsaTaxInfo', array_map(static fn (array $b): array => ['name' => 'CombinedRate', 'rate' => $b['rate'], 'tax' => $b['tax']], $bands));
+                $line->setPayloadValue('inoceanUsaTaxVersion', $release);
+            }
+            $freightTaxable = $this->config->get('InoceanSalesTaxesUsa.config.FreightTaxable', $channel) ?? true;
+            $shippingInfo = [];
+            foreach ($cart->getDeliveries() as $delivery) {
+                // Different delivery addresses must not silently use the first delivery's jurisdiction.
+                $location = $delivery->getLocation();
+                if ($location->getCountry()->getIso() !== 'US' || $location->getAddress()?->getZipcode() !== $address?->getZipcode() || $location->getState()?->getId() !== $context->getShippingLocation()->getState()?->getId()) {
+                    throw new \DomainException('Multiple shipping jurisdictions require separate orders.');
+                }
+                $taxId = $delivery->getShippingMethod()->getTaxId();
+                if ($this->managed($taxId)) {
+                    $shippingRate = $freightTaxable && $taxId === Constants::TAXES[0]['id'] ? $rate : 0.0;
+                    $shippingPrice = $delivery->getShippingCosts()->getTotalPrice();
+                    $taxes = $this->taxes([['rate' => $shippingRate, 'price' => $shippingPrice,
+                        'tax' => TaxMath::amount($shippingPrice, $shippingRate, $gross, $decimals)]]);
+                    $position = $delivery->getPositions()->first();
+                    if (!$position) { throw new \DomainException('Delivery has no position.'); }
+                    $deliveryTaxes[$position->getIdentifier()] = $taxes;
+                    $shippingInfo[] = ['name' => 'CombinedRate', 'rate' => $shippingRate, 'tax' => $taxes->getAmount()];
+                } else { $taxes = $delivery->getShippingCosts()->getCalculatedTaxes(); }
+                $aggregate->merge($taxes);
+            }
+            if ($cart->getLineItems()->first()) { $cart->getLineItems()->first()->setPayloadValue('inoceanShippingTaxInfo', $shippingInfo); }
+            return new TaxProviderResult($lineTaxes, $deliveryTaxes, $aggregate);
+        } catch (\DomainException $e) {
+            $cart->addErrors(new UnknownTaxZipError($zip, $state));
+            $this->logger->warning('USA sales tax order blocked.', ['reason' => $e->getMessage(), 'salesChannelId' => $channel]);
+            return new TaxProviderResult();
+        } catch (\Throwable $e) {
+            $cart->addErrors(new UnknownTaxZipError($zip, $state));
+            $this->logger->error('USA sales tax local lookup unavailable.', ['exception' => $e]);
+            return new TaxProviderResult();
         }
-
-        // A ZIP the table does not know used to be taxed at the flat fallback
-        // rate without a word. The cart still prices (so it can be shown and
-        // corrected) but the order is blocked: a guessed rate either
-        // over-collects from the customer or under-collects at the merchant's
-        // expense.
-        if ($this->ratesUnknown) {
-            $cart->addErrors(new UnknownTaxZipError($zipCode, $state));
-            $this->logger?->error('USA tax: no rate for this ZIP code; order placement is blocked until the address is corrected.', [
-                'zipcode' => $zipCode,
-                'state' => $state,
-                'salesChannelId' => $context->getSalesChannelId(),
-            ]);
-        }
-
-        $finalCartTaxes = new UsaCalculatedTaxCollection();
-        
-        foreach ($aggregatedCartTaxes as $data) {
-            $calculatedTax = new CalculatedTax($data['tax'], $data['rate'], $data['price']);
-            $calculatedTax->addExtension('taxName', new ArrayEntity(['name' => $data['name']]));
-            $finalCartTaxes->add($calculatedTax);
-        }
-
-        return new TaxProviderResult(
-            $lineItemTaxes,
-            $deliveryTaxes,
-            new UsaCalculatedTaxCollection($finalCartTaxes)
-        );
     }
 
-    /**
-     * Records a line's bands: itemised on the payload (for display and
-     * documents), merged by rate on the line's taxes and the cart's.
-     *
-     * @param list<array{name: string, rate: float|int, tax: float, price: float}> $bands
-     * @param array<string, array{name: string, rate: float|int, tax: float, price: float, lines: array<string, true>}> $aggregatedCartTaxes
-     * @param array<string, UsaCalculatedTaxCollection> $lineItemTaxes
-     */
-    private function applyBands(LineItem $lineItem, array $bands, array &$aggregatedCartTaxes, array &$lineItemTaxes): void
+    private function californiaRate(?\Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity $address, string $channel): array
     {
-        $lineItemTaxInfo = [];
-        foreach ($bands as $band) {
-            $lineItemTaxInfo[] = ['name' => $band['name'], 'rate' => $band['rate'], 'tax' => $band['tax']];
-            $this->aggregate($aggregatedCartTaxes, $band['name'], $band['rate'], $band['tax'], $band['price'], $lineItem->getId());
+        if (!$address || !$this->config->getBool('InoceanSalesTaxesUsa.config.OfficialAddressVerification', $channel)) {
+            throw new \DomainException('Enable official California address verification after reviewing address disclosure.');
         }
-
-        $payload = $lineItem->getPayload();
-        $payload['inoceanUsaTaxInfo'] = $lineItemTaxInfo;
-        $lineItem->setPayload($payload);
-
-        $lineItemTaxes[$lineItem->getUniqueIdentifier()] = new UsaCalculatedTaxCollection($this->mergedTaxes($bands));
+        return $this->california->find($address, \InoceanSalesTaxesUsa\Service\TaxDate::today(), $channel);
     }
 
-    /**
-     * One CalculatedTax per RATE, never per band.
-     *
-     * Shopware keys a stored order's taxes by rate when it reads them back
-     * (CartPriceFieldSerializer / CalculatedPriceFieldSerializer build a
-     * CalculatedTaxCollection, whose add() overwrites on the same rate). Two
-     * same-rate bands — e.g. a 4% state and a 4% county tax, common in NY and
-     * TX — therefore lost one of them on every loaded order: refunds, reports
-     * and reprints all came out short. The amounts summed are the already
-     * rounded per-band amounts, so the total charged does not move.
-     *
-     * @param list<array{name: string, rate: float|int, tax: float, price: float}> $bands
-     *
-     * @return list<CalculatedTax>
-     */
-    private function mergedTaxes(array $bands): array
+    private function managed(mixed $taxId): bool { return in_array($taxId, array_column(Constants::TAXES, 'id'), true); }
+    private function taxes(array $bands): CalculatedTaxCollection
     {
-        $byRate = [];
-        foreach ($bands as $band) {
-            $key = (string) (float) $band['rate'];
-            if (!isset($byRate[$key])) {
-                $byRate[$key] = $band;
-
-                continue;
-            }
-            $byRate[$key]['tax'] += $band['tax'];
-            $byRate[$key]['name'] = self::MERGED_BAND_NAME;
-        }
-
-        $taxes = [];
-        foreach ($byRate as $band) {
-            $calculatedTax = new CalculatedTax($band['tax'], $band['rate'], $band['price']);
-            $calculatedTax->addExtension('taxName', new ArrayEntity(['name' => $band['name']]));
-            $taxes[] = $calculatedTax;
-        }
-
+        $taxes = new CalculatedTaxCollection();
+        foreach ($bands as $band) { $taxes->merge(new CalculatedTaxCollection([new CalculatedTax($band['tax'], $band['rate'], $band['price'])])); }
         return $taxes;
     }
-
-    /**
-     * Cart-level totals, keyed by rate for the same reason as mergedTaxes().
-     * A rate's base (`price`) counts each line once, however many same-rate
-     * bands that line carries.
-     *
-     * @param array<string, array{name: string, rate: float|int, tax: float, price: float, lines: array<string, true>}> $aggregatedCartTaxes
-     */
-    private function aggregate(array &$aggregatedCartTaxes, string $taxName, float|int $taxRate, float $tax, float $price, string $lineKey): void
-    {
-        $key = (string) (float) $taxRate;
-        $aggregatedCartTaxes[$key] ??= ['name' => $taxName, 'rate' => $taxRate, 'tax' => 0.0, 'price' => 0.0, 'lines' => []];
-        $entry = &$aggregatedCartTaxes[$key];
-
-        if ($entry['name'] !== $taxName) {
-            $entry['name'] = self::MERGED_BAND_NAME;
-        }
-        $entry['tax'] += $tax;
-        if (!isset($entry['lines'][$lineKey])) {
-            $entry['lines'][$lineKey] = true;
-            $entry['price'] += $price;
-        }
-    }
-
-    /**
-     * A promotion is a reduction of things already sold, so it is taxed at the
-     * rates of the lines it reduced — never at the flat rate of the tax entity
-     * Shopware priced it with ((US) COMBINED TAX = 10%), which under-collected
-     * tax on every discounted order in a ZIP whose real rate is lower.
-     *
-     * The promotion's own `composition` payload says which lines the discount
-     * came off and by how much; failing that, the discount is split by price
-     * across the taxed lines. Nothing taxed to attribute it to means no tax at
-     * all — reversing tax there would invent a liability.
-     *
-     * @param array<string, array<string, float|int>> $ratesByLineId
-     * @param array<string, float> $priceByLineId
-     * @param array<string, array{name: string, rate: float|int, tax: float, price: float, lines: array<string, true>}> $aggregatedCartTaxes
-     * @param array<string, UsaCalculatedTaxCollection> $lineItemTaxes
-     */
-    private function applyPromotionTaxes(
-        LineItem $lineItem,
-        array $ratesByLineId,
-        array $priceByLineId,
-        int $taxDecimals,
-        array &$aggregatedCartTaxes,
-        array &$lineItemTaxes
-    ): void {
-        $promotionPrice = $lineItem->getPrice()?->getTotalPrice() ?? 0.0;
-        $composition = $lineItem->getPayloadValue('composition');
-
-        $weights = [];
-        foreach (\is_array($composition) ? $composition : [] as $entry) {
-            $id = \is_array($entry) ? ($entry['id'] ?? null) : null;
-            $discount = \is_array($entry) ? abs((float) ($entry['discount'] ?? 0.0)) : 0.0;
-            if (\is_string($id) && ($ratesByLineId[$id] ?? []) !== [] && $discount > 0.0) {
-                $weights[$id] = ($weights[$id] ?? 0.0) + $discount;
-            }
-        }
-        if ($weights === []) {
-            foreach ($priceByLineId as $id => $price) {
-                if (($ratesByLineId[$id] ?? []) !== [] && $price > 0.0) {
-                    $weights[$id] = $price;
-                }
-            }
-        }
-
-        $totalWeight = array_sum($weights);
-        $bases = [];
-        foreach ($totalWeight > 0.0 ? $weights : [] as $id => $weight) {
-            $share = $promotionPrice * ($weight / $totalWeight);
-            foreach ($ratesByLineId[$id] as $taxName => $taxRate) {
-                $key = $taxName . '|' . $taxRate;
-                $bases[$key] ??= ['name' => (string) $taxName, 'rate' => $taxRate, 'price' => 0.0];
-                $bases[$key]['price'] += $share;
-            }
-        }
-
-        $bands = [];
-        foreach ($bases as $base) {
-            $bands[] = ['name' => $base['name'], 'rate' => $base['rate'], 'tax' => round($base['price'] * $base['rate'] / 100, $taxDecimals), 'price' => $base['price']];
-        }
-        $this->applyBands($lineItem, $bands, $aggregatedCartTaxes, $lineItemTaxes);
-    }
-
-    /**
-     * The state a ZIP belongs to, from the rate table — for addresses that
-     * carry a ZIP but no state.
-     */
-    private function stateForZip(string $zipCode): ?string
-    {
-        if ($zipCode === '') {
-            return null;
-        }
-
-        if ($this->zipIndex === null) {
-            $this->zipIndex = [];
-            $content = @file_get_contents(__DIR__ . '/../../../../Config/TaxRates-US.json');
-            $data = \is_string($content) ? json_decode($content, true) : null;
-            foreach (\is_array($data) ? ($data['states'] ?? []) : [] as $stateCode => $zips) {
-                foreach (array_keys($zips) as $zip) {
-                    $this->zipIndex[(string) $zip] ??= (string) $stateCode;
-                }
-            }
-        }
-
-        return $this->zipIndex[$zipCode] ?? null;
-    }
-
-    private function getTaxRatesByZipCode(string $zipCode, string $state, bool $showTaxBreakdown): array
-    {
-        $jsonPath = __DIR__ . '/../../../../Config/TaxRates-US.json';
-
-        $rateMapping = [
-            'cbr' => 'CombinedRate',
-            'str' => 'StateRate',
-            'ctr' => 'CountyRate',
-            'cir' => 'CityRate',
-            'spr' => 'SpecialRate',
-        ];
-
-        $defaultRate = $this->getDefaultRateByTaxType('COMBINED-TAX') ?? 10;
-
-        if (!file_exists($jsonPath)) {
-            $this->ratesUnknown = true;
-
-            return [
-                $rateMapping['cbr'] => $defaultRate
-            ];
-        }
-
-        $jsonContent = file_get_contents($jsonPath);
-        if ($jsonContent === false) {
-            $this->ratesUnknown = true;
-
-            return [
-                $rateMapping['cbr'] => $defaultRate
-            ];
-        }
-
-        $taxData = json_decode($jsonContent, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->ratesUnknown = true;
-
-            return [
-                $rateMapping['cbr'] => $defaultRate
-            ];
-        }
-
-        $stateCode = substr(strtoupper($state), -2);
-
-        if (!isset($taxData['states'][$stateCode]) || !isset($taxData['states'][$stateCode][$zipCode])) {
-            $this->ratesUnknown = true;
-
-            return [
-                $rateMapping['cbr'] => $defaultRate
-            ];
-        }
-
-        $zipData = $taxData['states'][$stateCode][$zipCode];
-
-        if ($showTaxBreakdown) {
-            $result = [];
-            foreach (['str', 'ctr', 'cir', 'spr'] as $key) {
-                if (isset($zipData[$key])) {
-                    $result[$rateMapping[$key]] = (float)$zipData[$key] * 100;
-                }
-            }
-            return $result;
-        } else {
-            return [
-                $rateMapping['cbr'] => isset($zipData['cbr']) ? (float)$zipData['cbr'] * 100 : 0.0
-            ];
-        }
-    }
-
-    private function getDefaultRateByTaxType(string $type): int {
-        foreach (Constants::TAXES as $tax) {
-            if ($tax['tax_type'] === $type) {
-                return $tax['tax_rate'];
-            }
-        }
-        return 0;
-    }
-
 }
