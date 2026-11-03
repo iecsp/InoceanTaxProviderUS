@@ -21,6 +21,8 @@ try {
     }
     $bundle=$kernel->getBundle('InoceanSalesTaxesUsa');
     $cards=(new Shopware\Core\System\SystemConfig\Util\ConfigReader())->getConfigFromBundle($bundle);
+    // 6.7.16+ returns tabs ({title,name,cards}); earlier versions return the cards directly.
+    if(isset($cards[0]['cards'])) { $cards=array_merge(...array_column($cards,'cards')); }
     if(count($cards)!==2) { throw new RuntimeException('Invalid settings page.'); }
     echo 'Configuration XML: 2 valid settings cards.',PHP_EOL;
     $senders=$c->get('messenger.senders_locator')->getSenders(new Symfony\Component\Messenger\Envelope(new InoceanSalesTaxesUsa\Message\SyncRates(str_repeat('a',32))));
