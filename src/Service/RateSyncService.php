@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Service;
+namespace InoceanTaxProviderUS\Service;
 
 use Doctrine\DBAL\Connection;
-use InoceanSalesTaxesUsa\Message\SyncRates;
+use InoceanTaxProviderUS\Message\SyncRates;
 use Psr\Log\LoggerInterface;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Symfony\Component\Messenger\MessageBusInterface;

@@ -1,5 +1,5 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Service;
+namespace InoceanTaxProviderUS\Service;
 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -16,7 +16,7 @@ final class WashingtonSource
             throw new \DomainException('Unapproved tax source URL.');
         }
         $response = $this->http->request('GET', $url, ['max_redirects' => 0, 'timeout' => 15, 'max_duration' => 60,
-            'headers' => ['User-Agent' => 'InoceanSalesTaxesUsa/2.0 (+local tax database sync)']]);
+            'headers' => ['User-Agent' => 'InoceanTaxProviderUS/2.0 (+local tax database sync)']]);
         if ($response->getStatusCode() !== 200) {
             $response->cancel();
             throw new \RuntimeException('Official tax source is unavailable.');

@@ -1,11 +1,11 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Tests;
+namespace InoceanTaxProviderUS\Tests;
 use Doctrine\DBAL\Connection;
-use InoceanSalesTaxesUsa\Config\Constants;
-use InoceanSalesTaxesUsa\Core\Checkout\Cart\Tax\UsaTaxProvider;
-use InoceanSalesTaxesUsa\Core\Checkout\Cart\Error\UnknownTaxZipError;
-use InoceanSalesTaxesUsa\Service\RateLookup;
-use InoceanSalesTaxesUsa\Service\CaliforniaAddressLookup;
+use InoceanTaxProviderUS\Config\Constants;
+use InoceanTaxProviderUS\Core\Checkout\Cart\Tax\UsaTaxProvider;
+use InoceanTaxProviderUS\Core\Checkout\Cart\Error\UnknownTaxZipError;
+use InoceanTaxProviderUS\Service\RateLookup;
+use InoceanTaxProviderUS\Service\CaliforniaAddressLookup;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Shopware\Core\Checkout\Cart\Cart;
@@ -32,7 +32,7 @@ final class ProviderTest extends TestCase
         $config = $this->createStub(SystemConfigService::class);
         $config->method('getBool')->willReturn($enabled);
         $config->method('get')->willReturnCallback(static fn ($key, $channel) => match ($key) {
-            'InoceanSalesTaxesUsa.config.NexusStates' => 'WA', 'InoceanSalesTaxesUsa.config.FreightTaxable' => $freight, default => null });
+            'InoceanTaxProviderUS.config.NexusStates' => 'WA', 'InoceanTaxProviderUS.config.FreightTaxable' => $freight, default => null });
         $lookup ??= new class implements RateLookup { public function find(string $state, string $postalCode, string $date): array { return ['rate' => 10.5, 'components' => ['StateRate' => 6.5, 'LocalRate' => 4.], 'datasetId' => 'test', 'jurisdiction' => '1702']; } };
         return new UsaTaxProvider($config, $lookup, new CaliforniaAddressLookup($this->createStub(Connection::class), new MessageBus(), new MockHttpClient(), $config), new NullLogger());
     }
@@ -165,7 +165,7 @@ final class ProviderTest extends TestCase
     public function testCollectorClearsPayloadEvenWhenProviderIsSkipped(): void
     {
         $cart=new Cart('test');$line=$this->item('a',100);$line->setPayloadValue('inoceanUsaTaxVersion',['datasetId'=>'old']);$cart->add($line);
-        (new \InoceanSalesTaxesUsa\Core\Checkout\Cart\Tax\TaxPayloadCleaner())->collect(new \Shopware\Core\Checkout\Cart\LineItem\CartDataCollection(),$cart,$this->context(country:'CA'),new \Shopware\Core\Checkout\Cart\CartBehavior());
+        (new \InoceanTaxProviderUS\Core\Checkout\Cart\Tax\TaxPayloadCleaner())->collect(new \Shopware\Core\Checkout\Cart\LineItem\CartDataCollection(),$cart,$this->context(country:'CA'),new \Shopware\Core\Checkout\Cart\CartBehavior());
         self::assertNull($line->getPayloadValue('inoceanUsaTaxVersion'));self::assertSame(Constants::TAXES[0]['id'],$line->getPayloadValue('taxId'));
     }
 

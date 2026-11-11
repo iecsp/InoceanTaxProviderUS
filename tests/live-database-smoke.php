@@ -3,8 +3,8 @@
 require __DIR__.'/bootstrap.php';
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Tools\DsnParser;
-use InoceanSalesTaxesUsa\Migration\Migration1793491200TaxStorage;
-use InoceanSalesTaxesUsa\Service\{WashingtonSource,CaliforniaSource,RateSyncService,DatabaseRateLookup,TaxDate};
+use InoceanTaxProviderUS\Migration\Migration1793491200TaxStorage;
+use InoceanTaxProviderUS\Service\{WashingtonSource,CaliforniaSource,RateSyncService,DatabaseRateLookup,TaxDate};
 use Symfony\Component\Dotenv\Dotenv;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\Messenger\MessageBus;

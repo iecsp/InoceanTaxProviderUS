@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Message;
-use InoceanSalesTaxesUsa\Service\CaliforniaAddressLookup;
+namespace InoceanTaxProviderUS\Message;
+use InoceanTaxProviderUS\Service\CaliforniaAddressLookup;
 final class VerifyCaliforniaAddressHandler
 {
     public function __construct(private readonly CaliforniaAddressLookup $lookup) {}

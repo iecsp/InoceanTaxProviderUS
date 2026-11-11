@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Tests;
-use InoceanSalesTaxesUsa\Service\CaliforniaSource;
-use InoceanSalesTaxesUsa\Service\CaliforniaAddressLookup;
-use InoceanSalesTaxesUsa\Service\WashingtonSource;
+namespace InoceanTaxProviderUS\Tests;
+use InoceanTaxProviderUS\Service\CaliforniaSource;
+use InoceanTaxProviderUS\Service\CaliforniaAddressLookup;
+use InoceanTaxProviderUS\Service\WashingtonSource;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -62,7 +62,7 @@ final class SourceTest extends TestCase
 
     public function testTaxDateUsesPacificCalendarAroundUtcMidnight(): void
     {
-        self::assertSame('2026-09-30',\InoceanSalesTaxesUsa\Service\TaxDate::localDay('2026-10-01 00:30:00'));
-        self::assertSame('2026-10-01',\InoceanSalesTaxesUsa\Service\TaxDate::localDay('2026-10-01 08:30:00'));
+        self::assertSame('2026-09-30',\InoceanTaxProviderUS\Service\TaxDate::localDay('2026-10-01 00:30:00'));
+        self::assertSame('2026-10-01',\InoceanTaxProviderUS\Service\TaxDate::localDay('2026-10-01 08:30:00'));
     }
 }

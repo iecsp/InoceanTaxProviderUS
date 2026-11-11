@@ -1,5 +1,5 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Message;
+namespace InoceanTaxProviderUS\Message;
 use Shopware\Core\Framework\MessageQueue\AsyncMessageInterface;
 final class VerifyCaliforniaAddress implements AsyncMessageInterface
 {

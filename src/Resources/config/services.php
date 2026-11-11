@@ -1,14 +1,14 @@
 <?php declare(strict_types=1);
-use InoceanSalesTaxesUsa\Core\Checkout\Cart\Tax\UsaTaxProvider;
-use InoceanSalesTaxesUsa\Service\DatabaseRateLookup;
-use InoceanSalesTaxesUsa\Service\CaliforniaSource;
-use InoceanSalesTaxesUsa\Service\CaliforniaAddressLookup;
-use InoceanSalesTaxesUsa\Message\VerifyCaliforniaAddressHandler;
-use InoceanSalesTaxesUsa\Service\WashingtonSource;
-use InoceanSalesTaxesUsa\Service\RateSyncService;
-use InoceanSalesTaxesUsa\Message\SyncRatesHandler;
-use InoceanSalesTaxesUsa\Controller\RateController;
-use InoceanSalesTaxesUsa\Command\SyncRatesCommand;
+use InoceanTaxProviderUS\Core\Checkout\Cart\Tax\UsaTaxProvider;
+use InoceanTaxProviderUS\Service\DatabaseRateLookup;
+use InoceanTaxProviderUS\Service\CaliforniaSource;
+use InoceanTaxProviderUS\Service\CaliforniaAddressLookup;
+use InoceanTaxProviderUS\Message\VerifyCaliforniaAddressHandler;
+use InoceanTaxProviderUS\Service\WashingtonSource;
+use InoceanTaxProviderUS\Service\RateSyncService;
+use InoceanTaxProviderUS\Message\SyncRatesHandler;
+use InoceanTaxProviderUS\Controller\RateController;
+use InoceanTaxProviderUS\Command\SyncRatesCommand;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
@@ -16,7 +16,7 @@ return static function (ContainerConfigurator $container): void {
     $s = $container->services();
     // Dedicated client prevents tracing/logging shipping address query strings in the shared profiler client.
     $s->set('ino_usa_tax.http_client')->class(\Symfony\Contracts\HttpClient\HttpClientInterface::class)->factory([\Symfony\Component\HttpClient\HttpClient::class, 'create']);
-    $s->set(\InoceanSalesTaxesUsa\Core\Checkout\Cart\Tax\TaxPayloadCleaner::class)->tag('shopware.cart.collector', ['priority' => 10000]);
+    $s->set(\InoceanTaxProviderUS\Core\Checkout\Cart\Tax\TaxPayloadCleaner::class)->tag('shopware.cart.collector', ['priority' => 10000]);
     $s->set(DatabaseRateLookup::class)->args([service('Doctrine\DBAL\Connection')]);
     $s->set(CaliforniaSource::class)->args([service('ino_usa_tax.http_client')]);
     $s->set(CaliforniaAddressLookup::class)->args([service('Doctrine\DBAL\Connection'), service('messenger.bus.default'), service('ino_usa_tax.http_client'), service(SystemConfigService::class)]);
@@ -25,7 +25,7 @@ return static function (ContainerConfigurator $container): void {
     $s->set(RateSyncService::class)->public()->args([service('Doctrine\DBAL\Connection'), service(WashingtonSource::class), service(CaliforniaSource::class), service('messenger.bus.default'), service('logger')]);
     $s->set(SyncRatesHandler::class)->args([service(RateSyncService::class)])->tag('messenger.message_handler');
     $s->set(RateController::class)->public()->args([service(RateSyncService::class)])->tag('controller.service_arguments');
-    $s->set(\InoceanSalesTaxesUsa\Command\PruneRatesCommand::class)->args([service(RateSyncService::class)])->tag('console.command');
+    $s->set(\InoceanTaxProviderUS\Command\PruneRatesCommand::class)->args([service(RateSyncService::class)])->tag('console.command');
     $s->set(SyncRatesCommand::class)->args([service(RateSyncService::class)])->tag('console.command');
     $s->set(UsaTaxProvider::class)->args([service(SystemConfigService::class), service(DatabaseRateLookup::class), service(CaliforniaAddressLookup::class), service('logger')])->tag('shopware.tax.provider');
 };

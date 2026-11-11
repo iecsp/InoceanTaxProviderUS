@@ -4,5 +4,5 @@ foreach ([__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../../../../vendor/au
     if (is_file($autoload)) { $loader = require $autoload; break; }
 }
 if ($loader === null) { throw new RuntimeException('Install Composer dependencies before running tests.'); }
-$loader->addPsr4('InoceanSalesTaxesUsa\\', __DIR__ . '/../src');
-$loader->addPsr4('InoceanSalesTaxesUsa\\Tests\\', __DIR__);
+$loader->addPsr4('InoceanTaxProviderUS\\', __DIR__ . '/../src');
+$loader->addPsr4('InoceanTaxProviderUS\\Tests\\', __DIR__);

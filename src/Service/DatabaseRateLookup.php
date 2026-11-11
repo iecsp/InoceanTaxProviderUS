@@ -1,5 +1,5 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Service;
+namespace InoceanTaxProviderUS\Service;
 
 use Doctrine\DBAL\Connection;
 

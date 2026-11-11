@@ -1,5 +1,5 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Core\Checkout\Cart\Tax;
+namespace InoceanTaxProviderUS\Core\Checkout\Cart\Tax;
 use Shopware\Core\Checkout\Cart\{Cart, CartBehavior, CartDataCollectorInterface};
 use Shopware\Core\Checkout\Cart\LineItem\CartDataCollection;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;

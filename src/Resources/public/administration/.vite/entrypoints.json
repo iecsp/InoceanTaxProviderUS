@@ -1,11 +1,11 @@
 {
-  "base": "/bundles/inoceansalestaxesusa/administration/",
+  "base": "/bundles/inoceantaxproviderus/administration/",
   "entryPoints": {
-    "inocean-sales-taxes-usa": {
+    "inocean-tax-provider-u-s": {
       "css": [],
       "dynamic": [],
       "js": [
-        "/bundles/inoceansalestaxesusa/administration/assets/inocean-sales-taxes-usa-Bkr-VUkR.js"
+        "/bundles/inoceantaxproviderus/administration/assets/inocean-tax-provider-u-s-Bkr-VUkR.js"
       ],
       "legacy": false,
       "preload": []

@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Command;
-use InoceanSalesTaxesUsa\Service\RateSyncService;
+namespace InoceanTaxProviderUS\Command;
+use InoceanTaxProviderUS\Service\RateSyncService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\{InputInterface, InputOption};
 use Symfony\Component\Console\Output\OutputInterface;

@@ -1,11 +1,11 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Tests;
+namespace InoceanTaxProviderUS\Tests;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Tools\DsnParser;
-use InoceanSalesTaxesUsa\Migration\Migration1793491200TaxStorage;
-use InoceanSalesTaxesUsa\Service\{RateSyncService, WashingtonSource, CaliforniaSource, DatabaseRateLookup, CaliforniaAddressLookup};
-use InoceanSalesTaxesUsa\Message\{SyncRates, VerifyCaliforniaAddress};
+use InoceanTaxProviderUS\Migration\Migration1793491200TaxStorage;
+use InoceanTaxProviderUS\Service\{RateSyncService, WashingtonSource, CaliforniaSource, DatabaseRateLookup, CaliforniaAddressLookup};
+use InoceanTaxProviderUS\Message\{SyncRates, VerifyCaliforniaAddress};
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Dotenv\Dotenv;

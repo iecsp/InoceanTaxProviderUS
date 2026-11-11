@@ -1,5 +1,5 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Migration;
+namespace InoceanTaxProviderUS\Migration;
 
 use Doctrine\DBAL\Connection;
 use Shopware\Core\Framework\Migration\MigrationStep;

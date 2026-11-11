@@ -1,4 +1,4 @@
-# InoceanSalesTaxesUsa 2.0.0
+# InoceanTaxProviderUS 2.0.0
 
 Shopware 6.7 的美国普通实物商品销售税插件。当前经过验证的官方数据源为 **California (CA)** 和 **Washington (WA)**。不能把本插件宣传成覆盖全美所有商品税类的合规引擎。
 
@@ -62,15 +62,18 @@ Shopware 6.7 的美国普通实物商品销售税插件。当前经过验证的�
 
 ```sh
 docker exec maginut-app php bin/console plugin:refresh
-docker exec maginut-app php bin/console plugin:install --activate InoceanSalesTaxesUsa
-# 已安装的旧版本则使用 plugin:update InoceanSalesTaxesUsa
+docker exec maginut-app php bin/console plugin:install --activate InoceanTaxProviderUS
 docker exec maginut-app php bin/console cache:clear
 docker exec maginut-app php bin/console assets:install
 ```
 
-本次开发没有在业务库安装或激活插件。上述命令是部署步骤；测试只使用随机命名的独立数据库。发布包已包含重新构建的后台资源。
+发布包包含已编译的后台资源。
 
-后台进入 **Extensions → My extensions → USA Tax Provider → Configure**：
+### 已安装旧名称的站点
+
+部署前应保留现有插件注册记录的 ID 和启用状态，并将类名、包名、目录和自动加载配置迁移到新名称。同步迁移 `InoceanSalesTaxesUsa.config.*` 的全局及销售渠道设置、已登记的迁移类和计税服务标识。切换前先处理仍引用旧 PHP 类名的队列消息，切换后清理缓存并重新安装静态资源。Shopware 按入口类匹配插件记录，因此应先迁移注册记录，再执行 `plugin:refresh`。
+
+后台进入 **Extensions → My extensions → Inocean Tax Provider (US) → Configure**：
 
 1. nexus 填 `CA`。这个配置必须反映商家实际代收义务；不在 nexus 内的托管商品按零税率处理。
 2. 选择 California，点击“同步官方税率”。可查看任务状态、有效期、版本、来源及记录数；页面会轮询任务状态。
@@ -114,16 +117,16 @@ docker exec maginut-app php bin/console ino:usa-tax:prune --keep=3
 
 ```sh
 # 在本项目已安装 PHPUnit 或指定 PHAR 路径后执行：
-docker exec maginut-app php /path/to/phpunit.phar -c custom/plugins/InoceanSalesTaxesUsa/phpunit.xml.dist
-docker exec -e INO_USA_DB_TESTS=1 maginut-app php /path/to/phpunit.phar -c custom/plugins/InoceanSalesTaxesUsa/phpunit.xml.dist
-docker exec maginut-app node --test custom/plugins/InoceanSalesTaxesUsa/tests/administration.test.mjs
+docker exec maginut-app php /path/to/phpunit.phar -c custom/plugins/InoceanTaxProviderUS/phpunit.xml.dist
+docker exec -e INO_USA_DB_TESTS=1 maginut-app php /path/to/phpunit.phar -c custom/plugins/InoceanTaxProviderUS/phpunit.xml.dist
+docker exec maginut-app node --test custom/plugins/InoceanTaxProviderUS/tests/administration.test.mjs
 # PHPStan 2，level 5，无基线抑制
-docker exec maginut-app php /path/to/phpstan.phar analyse -c custom/plugins/InoceanSalesTaxesUsa/phpstan.dist.neon
+docker exec maginut-app php /path/to/phpstan.phar analyse -c custom/plugins/InoceanTaxProviderUS/phpstan.dist.neon
 # Shopware 容器、路由认证、配置 XSD、async 路由（不安装插件）
-docker exec maginut-app php custom/plugins/InoceanSalesTaxesUsa/tests/kernel-smoke.php
+docker exec maginut-app php custom/plugins/InoceanTaxProviderUS/tests/kernel-smoke.php
 # 以下为显式联网检查，仅使用公开资料及 CDTFA 自己的公开示例地址：
-docker exec maginut-app php custom/plugins/InoceanSalesTaxesUsa/tests/live-smoke.php
-docker exec maginut-app php custom/plugins/InoceanSalesTaxesUsa/tests/live-database-smoke.php
+docker exec maginut-app php custom/plugins/InoceanTaxProviderUS/tests/live-smoke.php
+docker exec maginut-app php custom/plugins/InoceanTaxProviderUS/tests/live-database-smoke.php
 ```
 
 后台 Node 测试使用项目 Shopware Administration 自带 Vue 编译器；需其 npm dependencies。独立插件 checkout 可 `composer install` 后运行 `composer test`，数据库和 Shopware kernel 检查则需要完整项目环境。

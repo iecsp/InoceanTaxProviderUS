@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Tests;
-use InoceanSalesTaxesUsa\Service\TaxMath;
+namespace InoceanTaxProviderUS\Tests;
+use InoceanTaxProviderUS\Service\TaxMath;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 final class TaxMathTest extends TestCase

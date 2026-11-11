@@ -1,7 +1,7 @@
 {
   "main.js": {
-    "file": "assets/inocean-sales-taxes-usa-Bkr-VUkR.js",
-    "name": "inocean-sales-taxes-usa",
+    "file": "assets/inocean-tax-provider-u-s-Bkr-VUkR.js",
+    "name": "inocean-tax-provider-u-s",
     "src": "main.js",
     "isEntry": true
   }

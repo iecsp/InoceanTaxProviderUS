@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Controller;
-use InoceanSalesTaxesUsa\Service\RateSyncService;
+namespace InoceanTaxProviderUS\Controller;
+use InoceanTaxProviderUS\Service\RateSyncService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 

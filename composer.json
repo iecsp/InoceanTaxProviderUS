@@ -1,5 +1,5 @@
 {
-  "name": "inocean/sales-taxes-usa",
+  "name": "inocean/tax-provider-us",
   "description": "This plugin implements different tax rates for USA, including multiple tax rates.",
   "version": "2.0.0",
   "type": "shopware-platform-plugin",
@@ -19,18 +19,18 @@
     "ext-mbstring": "*"
   },
   "extra": {
-    "shopware-plugin-class": "InoceanSalesTaxesUsa\\InoceanSalesTaxesUsa",
+    "shopware-plugin-class": "InoceanTaxProviderUS\\InoceanTaxProviderUS",
     "plugin-icon": "src/Resources/config/plugin.png",
     "copyright": "(c) by Inocean Technology (iecsp.com)",
     "label": {
-      "en-GB": "USA Tax Provider for Shopware",
-      "en-US": "USA Tax Provider for Shopware",
-      "de-DE": "USA Steueranbieter f\u00fcr Shopware"
+      "en-GB": "Inocean Tax Provider (US)",
+      "en-US": "Inocean Tax Provider (US)",
+      "de-DE": "Inocean Tax Provider (US)"
     }
   },
   "autoload": {
     "psr-4": {
-      "InoceanSalesTaxesUsa\\": "src/"
+      "InoceanTaxProviderUS\\": "src/"
     }
   },
   "require-dev": {
@@ -38,7 +38,7 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "InoceanSalesTaxesUsa\\Tests\\": "tests/"
+      "InoceanTaxProviderUS\\Tests\\": "tests/"
     }
   },
   "scripts": {

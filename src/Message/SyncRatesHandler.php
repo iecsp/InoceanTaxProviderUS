@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Message;
-use InoceanSalesTaxesUsa\Service\RateSyncService;
+namespace InoceanTaxProviderUS\Message;
+use InoceanTaxProviderUS\Service\RateSyncService;
 final class SyncRatesHandler
 {
     public function __construct(private readonly RateSyncService $sync) {}

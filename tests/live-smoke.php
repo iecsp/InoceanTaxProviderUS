@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 // Opt-in live public-source verification. No customer data, orders or business tables are changed.
 require __DIR__.'/bootstrap.php';
-use InoceanSalesTaxesUsa\Service\{WashingtonSource,CaliforniaSource,CaliforniaAddressLookup};
+use InoceanTaxProviderUS\Service\{WashingtonSource,CaliforniaSource,CaliforniaAddressLookup};
 use Symfony\Component\HttpClient\HttpClient;
 $http=HttpClient::create();$today=(new DateTimeImmutable('now',new DateTimeZone('America/Los_Angeles')))->format('Y-m-d');
 $ca=(new CaliforniaSource($http))->fetch($today);

@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Service;
+namespace InoceanTaxProviderUS\Service;
 
 use Doctrine\DBAL\Connection;
-use InoceanSalesTaxesUsa\Message\VerifyCaliforniaAddress;
+use InoceanTaxProviderUS\Message\VerifyCaliforniaAddress;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -55,8 +55,8 @@ final class CaliforniaAddressLookup
 
     public function verify(VerifyCaliforniaAddress $job): void
     {
-        if ($job->salesChannelId === '' || !$this->config->getBool('InoceanSalesTaxesUsa.config.Enabled', $job->salesChannelId) ||
-            !$this->config->getBool('InoceanSalesTaxesUsa.config.OfficialAddressVerification', $job->salesChannelId)) {
+        if ($job->salesChannelId === '' || !$this->config->getBool('InoceanTaxProviderUS.config.Enabled', $job->salesChannelId) ||
+            !$this->config->getBool('InoceanTaxProviderUS.config.OfficialAddressVerification', $job->salesChannelId)) {
             $this->reject($job); return;
         }
         $requestDay = TaxDate::today();

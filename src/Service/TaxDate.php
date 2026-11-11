@@ -1,5 +1,5 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Service;
+namespace InoceanTaxProviderUS\Service;
 final class TaxDate
 {
     public static function today(): string { return (new \DateTimeImmutable('now', new \DateTimeZone('America/Los_Angeles')))->format('Y-m-d'); }

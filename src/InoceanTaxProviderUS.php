@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace InoceanSalesTaxesUsa;
+namespace InoceanTaxProviderUS;
 
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Plugin;
@@ -13,10 +13,10 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsAnyFilter;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\Context;
-use InoceanSalesTaxesUsa\Config\Constants;
-use InoceanSalesTaxesUsa\Core\Checkout\Cart\Tax\UsaTaxProvider;
+use InoceanTaxProviderUS\Config\Constants;
+use InoceanTaxProviderUS\Core\Checkout\Cart\Tax\UsaTaxProvider;
 
-class InoceanSalesTaxesUsa extends Plugin
+class InoceanTaxProviderUS extends Plugin
 {
 
 	public function install(InstallContext $installContext): void

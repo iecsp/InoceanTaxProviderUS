@@ -1,11 +1,11 @@
 <?php declare(strict_types=1);
-namespace InoceanSalesTaxesUsa\Core\Checkout\Cart\Tax;
+namespace InoceanTaxProviderUS\Core\Checkout\Cart\Tax;
 
-use InoceanSalesTaxesUsa\Config\Constants;
-use InoceanSalesTaxesUsa\Core\Checkout\Cart\Error\UnknownTaxZipError;
-use InoceanSalesTaxesUsa\Service\RateLookup;
-use InoceanSalesTaxesUsa\Service\CaliforniaAddressLookup;
-use InoceanSalesTaxesUsa\Service\TaxMath;
+use InoceanTaxProviderUS\Config\Constants;
+use InoceanTaxProviderUS\Core\Checkout\Cart\Error\UnknownTaxZipError;
+use InoceanTaxProviderUS\Service\RateLookup;
+use InoceanTaxProviderUS\Service\CaliforniaAddressLookup;
+use InoceanTaxProviderUS\Service\TaxMath;
 use Psr\Log\LoggerInterface;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
@@ -51,10 +51,10 @@ final class UsaTaxProvider extends AbstractTaxProvider
         $state = str_starts_with($state, 'US-') ? substr($state, 3) : $state;
         $zip = (string) $address?->getZipcode();
         try {
-            if (!$this->config->getBool('InoceanSalesTaxesUsa.config.Enabled', $channel)) {
+            if (!$this->config->getBool('InoceanTaxProviderUS.config.Enabled', $channel)) {
                 throw new \DomainException('USA tax provider must be configured and enabled.');
             }
-            $nexus = array_values(array_filter(array_map('trim', explode(',', strtoupper((string) $this->config->get('InoceanSalesTaxesUsa.config.NexusStates', $channel))))));
+            $nexus = array_values(array_filter(array_map('trim', explode(',', strtoupper((string) $this->config->get('InoceanTaxProviderUS.config.NexusStates', $channel))))));
             if ($nexus === [] || !preg_match('/^[A-Z]{2}$/D', $state)) {
                 throw new \DomainException('Configure nexus states and a valid shipping state.');
             }
@@ -67,10 +67,10 @@ final class UsaTaxProvider extends AbstractTaxProvider
                 $needsRate = $needsRate || $candidate->getPayloadValue('taxId') === Constants::TAXES[0]['id'];
             }
             foreach ($cart->getDeliveries() as $candidate) {
-                $needsRate = $needsRate || (($this->config->get('InoceanSalesTaxesUsa.config.FreightTaxable', $channel) ?? true) && $candidate->getShippingMethod()->getTaxId() === Constants::TAXES[0]['id']);
+                $needsRate = $needsRate || (($this->config->get('InoceanTaxProviderUS.config.FreightTaxable', $channel) ?? true) && $candidate->getShippingMethod()->getTaxId() === Constants::TAXES[0]['id']);
             }
             $release = $needsRate && in_array($state, $nexus, true)
-                ? ($state === 'CA' ? $this->californiaRate($address, $channel) : $this->lookup->find($state, $zip, \InoceanSalesTaxesUsa\Service\TaxDate::today()))
+                ? ($state === 'CA' ? $this->californiaRate($address, $channel) : $this->lookup->find($state, $zip, \InoceanTaxProviderUS\Service\TaxDate::today()))
                 : ['rate' => 0.0, 'components' => [], 'datasetId' => $needsRate ? 'no-nexus' : 'tax-exempt', 'jurisdiction' => $state];
             $rate = (float) $release['rate'];
             $gross = $context->getTaxState() === CartPrice::TAX_STATE_GROSS;
@@ -123,7 +123,7 @@ final class UsaTaxProvider extends AbstractTaxProvider
                 $line->setPayloadValue('inoceanUsaTaxInfo', array_map(static fn (array $b): array => ['name' => 'CombinedRate', 'rate' => $b['rate'], 'tax' => $b['tax']], $bands));
                 $line->setPayloadValue('inoceanUsaTaxVersion', $release);
             }
-            $freightTaxable = $this->config->get('InoceanSalesTaxesUsa.config.FreightTaxable', $channel) ?? true;
+            $freightTaxable = $this->config->get('InoceanTaxProviderUS.config.FreightTaxable', $channel) ?? true;
             $shippingInfo = [];
             foreach ($cart->getDeliveries() as $delivery) {
                 // Different delivery addresses must not silently use the first delivery's jurisdiction.
@@ -159,10 +159,10 @@ final class UsaTaxProvider extends AbstractTaxProvider
 
     private function californiaRate(?\Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity $address, string $channel): array
     {
-        if (!$address || !$this->config->getBool('InoceanSalesTaxesUsa.config.OfficialAddressVerification', $channel)) {
+        if (!$address || !$this->config->getBool('InoceanTaxProviderUS.config.OfficialAddressVerification', $channel)) {
             throw new \DomainException('Enable official California address verification after reviewing address disclosure.');
         }
-        return $this->california->find($address, \InoceanSalesTaxesUsa\Service\TaxDate::today(), $channel);
+        return $this->california->find($address, \InoceanTaxProviderUS\Service\TaxDate::today(), $channel);
     }
 
     private function managed(mixed $taxId): bool { return in_array($taxId, array_column(Constants::TAXES, 'id'), true); }

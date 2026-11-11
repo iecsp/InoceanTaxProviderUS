@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace InoceanSalesTaxesUsa\Core\Checkout\Cart\Error;
+namespace InoceanTaxProviderUS\Core\Checkout\Cart\Error;
 
 use Shopware\Core\Checkout\Cart\Error\Error;
 
