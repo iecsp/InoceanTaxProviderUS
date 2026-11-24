@@ -71,7 +71,7 @@ docker exec maginut-app php bin/console assets:install
 
 ### 已安装旧名称的站点
 
-部署前应保留现有插件注册记录的 ID 和启用状态，并将类名、包名、目录和自动加载配置迁移到新名称。同步迁移 `InoceanSalesTaxesUsa.config.*` 的全局及销售渠道设置、已登记的迁移类和计税服务标识。切换前先处理仍引用旧 PHP 类名的队列消息，切换后清理缓存并重新安装静态资源。Shopware 按入口类匹配插件记录，因此应先迁移注册记录，再执行 `plugin:refresh`。
+部署前应保留现有插件注册记录的 ID 和启用状态，并将类名、包名、目录和自动加载配置迁移到新名称。同步迁移 `InoceanTaxProviderUS.config.*` 的全局及销售渠道设置、已登记的迁移类和计税服务标识。切换前先处理仍引用旧 PHP 类名的队列消息，切换后清理缓存并重新安装静态资源。Shopware 按入口类匹配插件记录，因此应先迁移注册记录，再执行 `plugin:refresh`。
 
 后台进入 **Extensions → My extensions → Inocean Tax Provider (US) → Configure**：
 
