@@ -6,7 +6,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 final class SyncRatesCommand extends Command
 {
-    public function __construct(private readonly RateSyncService $sync) { parent::__construct('ino:usa-tax:sync'); }
+    public function __construct(private readonly RateSyncService $sync) { parent::__construct('inocean:us-tax:sync'); }
     protected function configure(): void { $this->setDescription('Synchronize official CA or WA rates; recover interrupted jobs.')->addOption('state', null, \Symfony\Component\Console\Input\InputOption::VALUE_REQUIRED, 'CA or WA', 'CA'); }
     protected function execute(InputInterface $input, OutputInterface $output): int
     {

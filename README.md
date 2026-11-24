@@ -90,13 +90,13 @@ docker exec maginut-app php bin/console assets:install
 
 ```sh
 # 同步 CA；也可作为计划任务运行，每天执行会检查版本是否变化
-docker exec maginut-app php bin/console ino:usa-tax:sync --state=CA
+docker exec maginut-app php bin/console inocean:us-tax:sync --state=CA
 # 可选 WA
-docker exec maginut-app php bin/console ino:usa-tax:sync --state=WA
+docker exec maginut-app php bin/console inocean:us-tax:sync --state=WA
 # 持续消费（交由现有进程管理器管理）
 docker exec maginut-app php bin/console messenger:consume async --time-limit=3600
 # 保留每州最近三个版本及当前活跃版本，清理七天前的地址核验缓存
-docker exec maginut-app php bin/console ino:usa-tax:prune --keep=3
+docker exec maginut-app php bin/console inocean:us-tax:prune --keep=3
 ```
 
 同步失败保持旧版本；旧版本过期后阻止依赖该地区税率的新订单。排查服务器同步日志、worker 和后台有效期。地址核验 `rejected` 表示官方定位不唯一、精度不足或与当前版本不一致，不能当作免税。

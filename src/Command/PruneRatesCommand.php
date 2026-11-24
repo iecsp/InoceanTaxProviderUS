@@ -6,7 +6,7 @@ use Symfony\Component\Console\Input\{InputInterface, InputOption};
 use Symfony\Component\Console\Output\OutputInterface;
 final class PruneRatesCommand extends Command
 {
-    public function __construct(private readonly RateSyncService $sync) { parent::__construct('ino:usa-tax:prune'); }
+    public function __construct(private readonly RateSyncService $sync) { parent::__construct('inocean:us-tax:prune'); }
     protected function configure(): void
     {
         $this->setDescription('Prune inactive tax datasets and address verification caches older than seven days.')
